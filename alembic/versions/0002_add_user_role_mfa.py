@@ -57,6 +57,8 @@ def upgrade():
             server_default=sa.func.now()
         )
     )
+
+
 def downgrade():
 
     op.drop_column(
