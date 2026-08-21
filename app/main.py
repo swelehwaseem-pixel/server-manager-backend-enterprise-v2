@@ -9,7 +9,12 @@ from prometheus_client import generate_latest, Gauge, REGISTRY
 import psutil
 
 from app.config import settings
-from app.database import engine, get_async_db, User, AsyncSessionLocal
+from app.database import (
+    engine,
+    get_async_db,
+    AsyncSessionLocal,
+)
+from app.models.user import User
 from app.auth import SecurityUtils
 from app.schemas.auth import TokenResponse
 
