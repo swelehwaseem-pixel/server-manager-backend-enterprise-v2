@@ -35,12 +35,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && printf '%s\n' 'appuser ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/server-manager \
     && chmod 440 /etc/sudoers.d/server-manager
 
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && . /etc/os-release \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/microsoft-prod.list \
-    && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 mssql-tools18 \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    DEBIAN_VERSION="$(cut -d. -f1 /etc/debian_version)"; \
+    curl -fsSL -O "https://packages.microsoft.com/config/debian/${DEBIAN_VERSION}/packages-microsoft-prod.deb"; \
+    dpkg -i packages-microsoft-prod.deb; \
+    rm -f packages-microsoft-prod.deb; \
+    apt-get update; \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+        msodbcsql18 \
+        mssql-tools18 \
+        libgssapi-krb5-2; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /install /usr/local
