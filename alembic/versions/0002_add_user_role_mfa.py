@@ -40,23 +40,24 @@ def upgrade():
     )
 
     op.add_column(
-        "users",
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=True
-        )
+    "users",
+    sa.Column(
+        "created_at",
+        sa.DateTime(),
+        nullable=False,
+        server_default=sa.func.now()
     )
+)
 
-    op.add_column(
-        "users",
-        sa.Column(
-            "updated_at",
-            sa.DateTime(),
-            nullable=True
-        )
+op.add_column(
+    "users",
+    sa.Column(
+        "updated_at",
+        sa.DateTime(),
+        nullable=False,
+        server_default=sa.func.now()
     )
-
+)
 
 def downgrade():
 
