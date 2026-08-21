@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 # revision identifiers
 revision = "0002_add_user_role_mfa"
-down_revision = "0001_initial"
+down_revision = "0001_initial_users"
 branch_labels = None
 depends_on = None
 
