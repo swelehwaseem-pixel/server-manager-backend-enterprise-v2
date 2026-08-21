@@ -26,7 +26,7 @@ def upgrade():
             "mfa_enabled",
             sa.Boolean(),
             nullable=False,
-            server_default="false"
+            server_default=sa.text("false")
         )
     )
 
