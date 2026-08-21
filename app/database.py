@@ -1,9 +1,12 @@
-from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
-
 from app.config import settings
-
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import declarative_base
 
 DATABASE_URL = settings.database_url
 _is_sqlite = DATABASE_URL.startswith("sqlite+")
@@ -32,15 +35,6 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 Base = declarative_base()
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-
 
 async def get_async_db():
     async with AsyncSessionLocal() as session:
