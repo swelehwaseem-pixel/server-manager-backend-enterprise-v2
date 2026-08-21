@@ -1,0 +1,36 @@
+# Secrets / environments
+.env
+.venv
+venv/
+env/
+
+# Databases and local state
+*.db
+*.sqlite3
+server_manager.db
+prometheus-data/
+grafana-storage/
+backup-mirror/
+*.log
+
+# Build/cache
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Host/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Backups and certificates
+*.dmp
+*.bak
+*.pem
+*.key

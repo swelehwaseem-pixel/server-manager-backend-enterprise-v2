@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+*.db
+*.sqlite3
+.env
+prometheus-data
+grafana-storage
+backup-mirror
+*.log

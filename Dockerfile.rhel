@@ -1,0 +1,49 @@
+FROM registry.access.redhat.com/ubi9/python-311:latest AS builder
+USER root
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS runtime
+
+RUN microdnf install -y \
+    python3.11 \
+    sudo \
+    curl \
+    ca-certificates \
+    gnupg2 \
+    unixODBC \
+    && microdnf clean all
+
+RUN curl -fsSL https://packages.microsoft.com/config/rhel/9/prod.repo -o /etc/yum.repos.d/mssql-release.repo \
+    && microdnf install -y msodbcsql18 mssql-tools18 \
+    && microdnf clean all
+
+RUN useradd --uid 10001 --create-home --shell /sbin/nologin appuser \
+    && printf '%s\n' 'appuser ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/server-manager \
+    && chmod 440 /etc/sudoers.d/server-manager
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH=/usr/local/bin:/opt/mssql-tools18/bin:$PATH \
+    TZ=UTC
+
+WORKDIR /app
+COPY --from=builder /install /usr/local
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./alembic.ini
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+
+RUN mkdir -p /app/targets /app/data /backup/oracle /backup/mssql && \
+    chown -R appuser:appuser /app /backup
+
+USER appuser
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)" || exit 1
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD []

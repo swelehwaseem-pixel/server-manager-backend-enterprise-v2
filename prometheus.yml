@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # Static local job for the backend itself (kept separate for reliability)
+  - job_name: 'fastapi-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['server-manager-backend:8000']
+
+  # Static local job for Nginx Exporter
+  - job_name: 'nginx-web-server'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+  # 🔥 DYNAMIC TARGETS MANAGED BY THE BACKEND API
+  - job_name: 'dynamic-servers'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/targets.json'
+        refresh_interval: 30s

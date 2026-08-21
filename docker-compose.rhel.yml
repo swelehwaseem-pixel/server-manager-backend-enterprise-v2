@@ -1,0 +1,6 @@
+# Compatibility entrypoint. The recommended production deployment is:
+#   SERVER_MANAGER_DOCKERFILE=Dockerfile.rhel docker compose up -d
+# This file is retained for existing automation.
+name: server-manager
+include:
+  - compose.yaml

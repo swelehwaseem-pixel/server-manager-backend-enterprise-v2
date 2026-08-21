@@ -1,0 +1,122 @@
+name: server-manager
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-servermanager}
+      POSTGRES_USER: ${POSTGRES_USER:-servermanager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-servermanager} -d ${POSTGRES_DB:-servermanager}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [backend]
+
+  server-manager-backend:
+    build:
+      context: .
+      dockerfile: ${SERVER_MANAGER_DOCKERFILE:-Dockerfile}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-servermanager}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-servermanager}
+      PROCFS_PATH: /host/proc
+      PROMETHEUS_TARGETS_FILE: /app/targets/targets.json
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    expose:
+      - "8000"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /run/systemd:/run/systemd:ro
+      - ./prometheus_targets:/app/targets
+      - /backup/oracle:/backup/oracle
+      - /backup/mssql:/backup/mssql
+    networks: [backend]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      server-manager-backend:
+        condition: service_started
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/nginx.conf:ro
+      - ${LETSENCRYPT_DIR:-/etc/letsencrypt}:/etc/letsencrypt:ro
+    networks: [backend]
+
+  prometheus:
+    image: prom/prometheus:v3.6.0
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+      - ./prometheus_targets:/etc/prometheus/targets
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks: [backend]
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks: [backend]
+
+  loki:
+    image: grafana/loki:3.5.4
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    networks: [backend]
+
+  promtail:
+    image: grafana/promtail:3.5.4
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log/journal:/var/log/journal:ro
+    networks: [backend]
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.2
+    restart: unless-stopped
+    command:
+      - -nginx.scrape-uri=http://nginx:8080/nginx_status
+    depends_on:
+      - nginx
+    expose:
+      - "9113"
+    networks: [backend]
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+
+networks:
+  backend:
+    driver: bridge
