@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -14,15 +14,28 @@ from app.models.user import User
 from app.models.role import Role, ROLE_HIERARCHY
 
 
+# ------------------------------------------------------------------
+# Password hashing
+# ------------------------------------------------------------------
+
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
 )
 
+
+# ------------------------------------------------------------------
+# OAuth2 / JWT
+# ------------------------------------------------------------------
+
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login"
+    tokenUrl="/api/v1/auth/login",
 )
 
+
+# ------------------------------------------------------------------
+# Security Utilities
+# ------------------------------------------------------------------
 
 class SecurityUtils:
 
@@ -45,6 +58,7 @@ class SecurityUtils:
         data: dict,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
+
         to_encode = data.copy()
 
         expire = (
@@ -52,12 +66,14 @@ class SecurityUtils:
             + (
                 expires_delta
                 or timedelta(
-                    minutes=settings.access_token_expire_minutes
+                    minutes=settings.access_token_expire_minutes,
                 )
             )
         )
 
-        to_encode.update({"exp": expire})
+        to_encode.update({
+            "exp": expire,
+        })
 
         return jwt.encode(
             to_encode,
@@ -65,6 +81,10 @@ class SecurityUtils:
             algorithm=settings.algorithm,
         )
 
+
+# ------------------------------------------------------------------
+# Current User
+# ------------------------------------------------------------------
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -78,6 +98,10 @@ async def get_current_user(
             "WWW-Authenticate": "Bearer",
         },
     )
+
+    # --------------------------------------------------------------
+    # Decode JWT
+    # --------------------------------------------------------------
 
     try:
         payload = jwt.decode(
@@ -94,9 +118,13 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
+    # --------------------------------------------------------------
+    # Load user from database
+    # --------------------------------------------------------------
+
     result = await db.execute(
         select(User).filter(
-            User.username == username
+            User.username == username,
         )
     )
 
@@ -108,30 +136,47 @@ async def get_current_user(
     return user
 
 
+# ------------------------------------------------------------------
+# Role Authorization
+# ------------------------------------------------------------------
+
 def require_role(required_role: Role):
 
     async def role_dependency(
         current_user: User = Depends(get_current_user),
     ) -> User:
 
+        # ----------------------------------------------------------
+        # Validate database role
+        # ----------------------------------------------------------
+
         try:
             current_role = Role(current_user.role)
-        except ValueError:
+
+        except (ValueError, TypeError):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User has an invalid system role.",
             )
+
+        # ----------------------------------------------------------
+        # Determine permissions from hierarchy
+        # ----------------------------------------------------------
 
         allowed_roles = ROLE_HIERARCHY.get(
             current_role,
             set(),
         )
 
+        # ----------------------------------------------------------
+        # Enforce required role
+        # ----------------------------------------------------------
+
         if required_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
-                    f"Insufficient privileges. "
+                    "Insufficient privileges. "
                     f"Required role: {required_role.value}."
                 ),
             )
@@ -141,12 +186,22 @@ def require_role(required_role: Role):
     return role_dependency
 
 
-# Convenient dependencies for routers/endpoints
+# ------------------------------------------------------------------
+# Convenient Role Dependencies
+# ------------------------------------------------------------------
 
-require_viewer = require_role(Role.VIEWER)
+require_viewer = require_role(
+    Role.VIEWER,
+)
 
-require_operator = require_role(Role.OPERATOR)
+require_operator = require_role(
+    Role.OPERATOR,
+)
 
-require_dba = require_role(Role.DBA)
+require_dba = require_role(
+    Role.DBA,
+)
 
-require_admin = require_role(Role.ADMIN)
+require_admin = require_role(
+    Role.ADMIN,
+)
