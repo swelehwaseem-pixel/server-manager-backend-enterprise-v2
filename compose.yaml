@@ -59,37 +59,37 @@ services:
     networks: [backend]
 
   prometheus:
-    image: prom/prometheus:v3.6.0
-    restart: unless-stopped
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-      - ./prometheus_targets:/etc/prometheus/targets
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    networks: [backend]
+  image: prom/prometheus:v3.6.0
+  restart: unless-stopped
+  volumes:
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - prometheus-data:/prometheus
+    - ./prometheus_targets:/etc/prometheus/targets
+  expose:
+    - "9090"
+  networks: [backend]
 
   grafana:
-    image: grafana/grafana:12.1.1
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
-    volumes:
-      - grafana-data:/var/lib/grafana
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-    networks: [backend]
+  image: grafana/grafana:12.1.1
+  restart: unless-stopped
+  environment:
+    GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+    GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
+  volumes:
+    - grafana-data:/var/lib/grafana
+  expose:
+    - "3000"
+  networks: [backend]
 
   loki:
-    image: grafana/loki:3.5.4
-    restart: unless-stopped
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - loki-data:/loki
-    ports:
-      - "${LOKI_PORT:-3100}:3100"
-    networks: [backend]
+  image: grafana/loki:3.5.4
+  restart: unless-stopped
+  command: -config.file=/etc/loki/local-config.yaml
+  volumes:
+    - loki-data:/loki
+  expose:
+    - "3100"
+  networks: [backend]
 
   promtail:
     image: grafana/promtail:3.5.4
