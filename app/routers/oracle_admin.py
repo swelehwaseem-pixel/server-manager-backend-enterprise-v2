@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, SecretStr
 from app.auth import get_current_user
-from app.database import User
+from app.models.user import User
 from app.schemas.db_admin import DBInstanceControlInput, SilentDBCARequestInput
 import oracledb
 
