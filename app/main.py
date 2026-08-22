@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI):
                     # assign Role.ADMIN here.
                     # --------------------------------------------------
                     admin_user = User(
-                        username=username,
+                        username=settings.first_superuser,
                         hashed_password=SecurityUtils.hash_password(
                             settings.first_superuser_password
                         ),
