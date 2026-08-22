@@ -25,6 +25,7 @@ from app.database import (
     AsyncSessionLocal,
 )
 from app.models.user import User
+from app.models.role import Role
 from app.auth import SecurityUtils
 from app.schemas.auth import TokenResponse
 
@@ -70,6 +71,7 @@ DISK_USAGE = Gauge(
 
 # ------------------------------------------------------------------
 # Lifespan
+# Database initialization + secure admin bootstrap
 # ------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -94,8 +96,22 @@ async def lifespan(app: FastAPI):
     # 2. Secure initial superuser bootstrap
     # ==============================================================
     #
-    # This code is safe when multiple Gunicorn/Uvicorn workers
-    # start at exactly the same time.
+    # FIRST_SUPERUSER and FIRST_SUPERUSER_PASSWORD are optional.
+    #
+    # Important:
+    #
+    # Multiple Gunicorn workers can execute lifespan() simultaneously.
+    #
+    # Worker A:
+    #   SELECT -> user doesn't exist
+    #
+    # Worker B:
+    #   SELECT -> user doesn't exist
+    #
+    # Both may attempt INSERT.
+    #
+    # PostgreSQL's UNIQUE constraint protects the database.
+    # The IntegrityError from the losing worker is caught below.
     #
     if (
         settings.first_superuser
@@ -105,10 +121,11 @@ async def lifespan(app: FastAPI):
         username = settings.first_superuser
 
         try:
+
             async with AsyncSessionLocal() as session:
 
                 # --------------------------------------------------
-                # Check whether the user already exists.
+                # Check whether the initial user already exists.
                 # --------------------------------------------------
                 result = await session.execute(
                     select(User).where(
@@ -128,13 +145,18 @@ async def lifespan(app: FastAPI):
                 else:
 
                     # --------------------------------------------------
-                    # Create the initial superuser.
+                    # Create the initial administrator.
+                    #
+                    # IMPORTANT:
+                    # User.role defaults to "viewer", so we explicitly
+                    # assign Role.ADMIN here.
                     # --------------------------------------------------
                     admin_user = User(
                         username=username,
                         hashed_password=SecurityUtils.hash_password(
                             settings.first_superuser_password
                         ),
+                        role=Role.ADMIN.value,
                     )
 
                     session.add(admin_user)
@@ -142,11 +164,11 @@ async def lifespan(app: FastAPI):
                     try:
 
                         # --------------------------------------------------
-                        # Force INSERT now.
+                        # Force the INSERT immediately.
                         #
-                        # This is important because the unique constraint
-                        # must be checked before commit so we can catch a
-                        # race between multiple Gunicorn workers.
+                        # This makes PostgreSQL evaluate the UNIQUE
+                        # constraint while we are still inside this
+                        # controlled block.
                         # --------------------------------------------------
                         await session.flush()
 
@@ -157,16 +179,17 @@ async def lifespan(app: FastAPI):
 
                         print(
                             f"✅ Superuser '{username}' "
-                            "created successfully."
+                            f"created successfully with role "
+                            f"'{Role.ADMIN.value}'."
                         )
 
                     except IntegrityError:
 
                         # --------------------------------------------------
-                        # Another worker created the same user concurrently.
+                        # Another Gunicorn worker created the same user.
                         #
-                        # Roll back this worker's transaction and continue
-                        # application startup normally.
+                        # Roll back this worker's transaction and allow
+                        # startup to continue normally.
                         # --------------------------------------------------
                         await session.rollback()
 
@@ -178,8 +201,8 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
 
             # ----------------------------------------------------------
-            # Unexpected database/bootstrap errors should NOT be hidden.
-            # Let the worker fail so Docker/Gunicorn can report it.
+            # Unexpected bootstrap errors should not be hidden.
+            # Let the worker/container report the actual problem.
             # ----------------------------------------------------------
             print(
                 f"❌ Superuser bootstrap failed: "
@@ -196,7 +219,7 @@ async def lifespan(app: FastAPI):
         )
 
     # ==============================================================
-    # 3. Application startup complete
+    # 3. Application is ready
     # ==============================================================
     yield
 
@@ -346,7 +369,7 @@ async def readiness_check():
 
 
 # ------------------------------------------------------------------
-# Prometheus Metrics
+# Prometheus Metrics Endpoint
 # ------------------------------------------------------------------
 @app.get(
     "/metrics",
@@ -378,7 +401,7 @@ async def get_prometheus_metrics():
 
 
 # ------------------------------------------------------------------
-# Authentication
+# Authentication: Login
 # ------------------------------------------------------------------
 @app.post(
     "/api/v1/auth/login",
@@ -392,7 +415,10 @@ async def login(
     """
     Authenticate and receive a JWT access token.
 
-    OAuth2 password flow.
+    - OAuth2 password flow
+    - Returns Bearer token
+    - Token expiration controlled by
+      ACCESS_TOKEN_EXPIRE_MINUTES
     """
 
     result = await db.execute(
@@ -422,7 +448,7 @@ async def login(
 
     access_token = SecurityUtils.create_access_token(
         data={
-            "sub": user.username
+            "sub": user.username,
         }
     )
 
@@ -433,34 +459,34 @@ async def login(
 
 
 # ------------------------------------------------------------------
-# Include Routers
+# Include ALL Routers
 # ------------------------------------------------------------------
 
-# 1. System Metrics
+# 1. System & Infrastructure
 app.include_router(
     metrics.router
 )
 
 
-# 2. Systemd Services
+# 2. Systemd Service Management
 app.include_router(
     services.router
 )
 
 
-# 3. Oracle Database
+# 3. Oracle Database Management
 app.include_router(
     oracle_admin.router
 )
 
 
-# 4. MS SQL Server
+# 4. MS SQL Server Management
 app.include_router(
     mssql_admin.router
 )
 
 
-# 5. Prometheus Targets
+# 5. Prometheus Dynamic Targets
 app.include_router(
     prometheus_targets.router
 )
@@ -472,7 +498,7 @@ app.include_router(
 )
 
 
-# 7. Linux Scripts / Shell
+# 7. Linux OS Management
 app.include_router(
     linux_scripts.router
 )
@@ -581,9 +607,12 @@ async def root():
 # Startup Information
 # ------------------------------------------------------------------
 print("=" * 60)
+
 print(
-    f"🚀 Enterprise Linux Core Engine v{settings.app_version}"
+    f"🚀 Enterprise Linux Core Engine "
+    f"v{settings.app_version}"
 )
+
 print("=" * 60)
 
 print(
