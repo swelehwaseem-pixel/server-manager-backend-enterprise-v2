@@ -182,7 +182,7 @@ def _get_interpreter(script_path: str) -> str:
 @router.post("/upload", response_model=ScriptUploadResponse)
 async def upload_script(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_operator)
 ):
     """
     Upload a new script file.
@@ -236,7 +236,7 @@ async def upload_script(
 # ------------------------------------------------------------------
 @router.get("/list")
 async def list_scripts(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_viewer)
 ):
     """
     List all available scripts with metadata.
@@ -264,7 +264,7 @@ async def list_scripts(
 @router.get("/view/{script_name}")
 async def view_script(
     script_name: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_viewer)
 ):
     """
     View the content of a script.
@@ -317,7 +317,7 @@ async def view_script(
 @router.post("/execute")
 async def execute_script(
     payload: ScriptExecutionInput,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_operator)
 ):
     """
     Execute a script and return the complete output after completion.
@@ -535,7 +535,7 @@ async def stream_script_output(
 @router.delete("/delete/{script_name}")
 async def delete_script(
     script_name: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
     """
     Delete a script.
@@ -570,7 +570,7 @@ async def delete_script(
 async def toggle_executable(
     script_name: str,
     executable: bool = True,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
     """
     Toggle the executable flag on a script.
