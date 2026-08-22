@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/services", tags=["Systemd Core"])
 ALLOWED_SERVICES = {"nginx", "docker", "postgresql", "redis-server", "mssql-server", "oracle-xe-21c"}
 
 @router.post("/control", response_model=ServiceControlResponse)
-async def control_service(payload: ServiceControlInput, current_user: User = Depends(get_current_user)):
+async def control_service(payload: ServiceControlInput, current_user: User = Depends(require_operator)):
     if payload.service_name not in ALLOWED_SERVICES:
         raise HTTPException(status_code=403, detail="Target system service execution is restricted.")
 
