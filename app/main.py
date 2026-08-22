@@ -325,7 +325,7 @@ async def root():
     """
     return {
         "service": "Enterprise Linux Core Engine",
-        "version": "1.0.0",
+        "version": settings.app_version,
         "docs": "/docs",
         "health": "/health",
         "metrics": "/metrics",
@@ -350,7 +350,9 @@ async def root():
 # Optional: Startup Message
 # ------------------------------------------------------------------
 print("=" * 60)
-print("🚀 Enterprise Linux Core Engine v1.0.0")
+print(
+    f"🚀 Enterprise Linux Core Engine v{settings.app_version}"
+)
 print("=" * 60)
 print(f"📡 API Documentation:  http://localhost:8000/docs")
 print(f"📊 Prometheus Metrics: http://localhost:8000/metrics")
