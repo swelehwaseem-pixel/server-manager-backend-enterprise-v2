@@ -15,7 +15,10 @@ async def query_loki_logs(
     start: Optional[int] = Query(None, description="Unix timestamp (nanoseconds) start"),
     end: Optional[int] = Query(None, description="Unix timestamp (nanoseconds) end"),
     limit: int = Query(100, ge=1, le=10000),
-    direction: str = Query("backward", regex="^(forward|backward)$"),
+    direction: str = Query(
+    "backward",
+    pattern="^(forward|backward)$",
+)
     current_user: User = Depends(get_current_user)
 ):
     """
