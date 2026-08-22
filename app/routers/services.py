@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from jose import jwt, JWTError
 from app.config import settings
 from app.auth import get_current_user
-from app.database import User
+from app.models.user import User
 from app.schemas.services import ServiceControlInput, ServiceControlResponse
 
 router = APIRouter(prefix="/api/v1/services", tags=["Systemd Core"])
