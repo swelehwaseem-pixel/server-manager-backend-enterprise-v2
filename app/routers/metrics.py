@@ -3,7 +3,12 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, s
 from jose import jwt, JWTError
 import psutil
 from app.config import settings
-from app.auth import get_current_user
+from app.auth import (
+    require_viewer,
+    require_operator,
+    require_dba,
+    require_admin,
+)
 from app.models.user import User
 
 router = APIRouter(prefix="/api/v1/metrics", tags=["Metrics Core"])
