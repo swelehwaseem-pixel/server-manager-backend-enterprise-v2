@@ -54,7 +54,7 @@ def _validate_script_safety(script: str):
 @router.post("/execute")
 async def execute_shell_script(
     payload: ScriptExecutionInput,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_operator)
 ):
     """
     Execute a Linux shell script securely.
