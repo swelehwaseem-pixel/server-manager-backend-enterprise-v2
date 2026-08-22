@@ -39,7 +39,7 @@ async def query_loki_logs(
         "backward",
         pattern="^(forward|backward)$",
     ),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_viewer),
 ):
     """
     Proxy endpoint to query Grafana Loki logs.
