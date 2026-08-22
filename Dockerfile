@@ -52,7 +52,8 @@ COPY --from=builder /install /usr/local
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod 755 /app/docker-entrypoint.sh && \
+    chown appuser:appuser /app/docker-entrypoint.sh
 
 RUN mkdir -p /app/targets /app/data /backup/oracle /backup/mssql && \
     chown -R appuser:appuser /app /backup
