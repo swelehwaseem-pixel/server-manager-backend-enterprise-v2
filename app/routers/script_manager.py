@@ -7,7 +7,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
-from app.auth import get_current_user
+from app.auth import (
+    require_viewer,
+    require_operator,
+    require_dba,
+    require_admin,
+)
 from app.models.user import User
 import stat
 import mimetypes
