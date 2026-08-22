@@ -2,7 +2,10 @@ fastapi>=0.110.0,<1.0
 uvicorn>=0.28.0,<1.0
 gunicorn>=21.2.0,<24
 python-jose[cryptography]>=3.3.0,<4
-passlib[bcrypt]>=1.7.4,<2
+
+passlib==1.7.4
+bcrypt==4.3.0
+
 sqlalchemy>=2.0.0,<3
 aiosqlite>=0.20.0,<1
 asyncpg>=0.30.0,<1
