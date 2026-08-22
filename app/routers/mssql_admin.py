@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, SecretStr
 import pyodbc
 from app.auth import get_current_user
-from app.database import User
+from app.models.user import User
 
 router = APIRouter(prefix="/api/v1/mssql", tags=["MSSQL Engine"])
 
