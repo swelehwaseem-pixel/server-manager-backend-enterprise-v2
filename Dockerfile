@@ -48,14 +48,15 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
 COPY --from=builder /install /usr/local
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
-RUN chmod 755 /app/docker-entrypoint.sh && \
-    chown appuser:appuser /app/docker-entrypoint.sh
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN mkdir -p /app/targets /app/data /backup/oracle /backup/mssql && \
+    chmod 755 /app/docker-entrypoint.sh && \
     chown -R appuser:appuser /app /backup
 
 USER appuser
