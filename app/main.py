@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from prometheus_client import generate_latest, Gauge, REGISTRY
 import psutil
 
@@ -53,25 +54,60 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-    # Create initial superuser ONLY if env vars are provided (no hardcoded defaults!)
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            if settings.first_superuser and settings.first_superuser_password:
-                result = await session.execute(
-                    select(User).filter(User.username == settings.first_superuser)
-                )
-                if not result.scalars().first():
-                    admin_user = User(
-                        username=settings.first_superuser,
-                        hashed_password=SecurityUtils.hash_password(
-                            settings.first_superuser_password
-                        )
-                    )
-                    session.add(admin_user)
-                    print(f"✅ Superuser '{settings.first_superuser}' created successfully.")
-            else:
-                print("⚠️  No FIRST_SUPERUSER env vars set. Skipping admin creation.")
+    # Create initial superuser ONLY if env vars are provided.
+# Safe when multiple Gunicorn workers start simultaneously.
+async with AsyncSessionLocal() as session:
+    async with session.begin():
+        if settings.first_superuser and settings.first_superuser_password:
 
+            result = await session.execute(
+                select(User).filter(
+                    User.username == settings.first_superuser
+                )
+            )
+
+            existing_user = result.scalars().first()
+
+            if existing_user:
+                print(
+                    f"ℹ️  Superuser '{settings.first_superuser}' "
+                    "already exists. Skipping creation."
+                )
+            else:
+                try:
+                    async with session.begin_nested():
+                        admin_user = User(
+                            username=settings.first_superuser,
+                            hashed_password=SecurityUtils.hash_password(
+                                settings.first_superuser_password
+                            )
+                        )
+
+                        session.add(admin_user)
+
+                        # Force INSERT inside the savepoint.
+                        await session.flush()
+
+                    print(
+                        f"✅ Superuser '{settings.first_superuser}' "
+                        "created successfully."
+                    )
+
+                except IntegrityError:
+                    # Another Gunicorn worker created the user
+                    # concurrently. The savepoint is rolled back,
+                    # while the outer transaction remains usable.
+                    print(
+                        f"ℹ️  Superuser '{settings.first_superuser}' "
+                        "was created by another worker. Skipping."
+                    )
+
+        else:
+            print(
+                "⚠️  No FIRST_SUPERUSER env vars set. "
+                "Skipping admin creation."
+            )
+            
     yield
 
     # 3. Cleanup on shutdown
