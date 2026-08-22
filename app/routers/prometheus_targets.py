@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from app.auth import get_current_user
-from app.database import User
+from app.models.user import User
 
 router = APIRouter(prefix="/api/v1/prometheus", tags=["Prometheus Management"])
 
