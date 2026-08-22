@@ -14,7 +14,7 @@ from app.models.user import User
 router = APIRouter(prefix="/api/v1/metrics", tags=["Metrics Core"])
 
 @router.get("/snapshot")
-async def get_system_snapshot(current_user: User = Depends(get_current_user)):
+async def get_system_snapshot(current_user: User = Depends(require_viewer)):
     mem = psutil.virtual_memory()
     disk = psutil.disk_usage("/")
     return {
