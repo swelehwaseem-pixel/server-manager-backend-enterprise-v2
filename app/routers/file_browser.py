@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.auth import get_current_user
-from app.database import User
+from app.models.user import User
 
 router = APIRouter(prefix="/api/v1/files", tags=["File Browser"])
 
