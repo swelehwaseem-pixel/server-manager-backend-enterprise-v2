@@ -2,7 +2,12 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status
 from jose import jwt, JWTError
 from app.config import settings
-from app.auth import get_current_user
+from app.auth import (
+    require_viewer,
+    require_operator,
+    require_dba,
+    require_admin,
+)
 from app.models.user import User
 from app.schemas.services import ServiceControlInput, ServiceControlResponse
 
